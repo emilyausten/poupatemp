@@ -1,0 +1,306 @@
+/* Notificações Customizadas - Visual 100% Nativo Android */
+
+.native-notification-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.native-notification-container {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  pointer-events: auto;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.native-notification {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 16px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transform: translateY(-100%);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.native-notification.animate-in {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.native-notification.animate-out {
+  transform: translateY(-100%);
+  opacity: 0;
+  transition: all 0.3s ease-in;
+}
+
+/* Header estilo Android */
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  min-height: 32px;
+}
+
+.notification-app-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-app-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.notification-app-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: #5f6368;
+  letter-spacing: 0.2px;
+}
+
+.notification-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: #9aa0a6;
+}
+
+.notification-close {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  color: #9aa0a6;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.notification-close:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Conteúdo principal */
+.notification-content {
+  padding: 16px;
+}
+
+.notification-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.notification-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notification-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #202124;
+  line-height: 1.4;
+  margin: 0 0 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-message {
+  font-size: 13px;
+  color: #5f6368;
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Botões de ação - estilo Material Design */
+.notification-actions {
+  padding: 0 16px 16px;
+}
+
+.notification-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.notification-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 64px;
+}
+
+.notification-button.primary {
+  background: #1976d2;
+  color: #ffffff;
+}
+
+.notification-button.primary:hover {
+  background: #1565c0;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
+.notification-button.secondary {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+
+.notification-button.secondary:hover {
+  background: #e8eaed;
+}
+
+/* Progress bar */
+.notification-progress {
+  height: 2px;
+  background: #f1f3f4;
+  overflow: hidden;
+}
+
+.notification-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1976d2, #42a5f5);
+  width: 100%;
+  transform-origin: left;
+  animation: progress-shrink var(--duration, 8000ms) linear forwards;
+}
+
+@keyframes progress-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Efeitos de vibração visual */
+.notification-vibrate {
+  animation: vibrate 0.1s ease-in-out 3;
+}
+
+@keyframes vibrate {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .native-notification-container {
+    left: 8px;
+    right: 8px;
+    top: 8px;
+  }
+
+  .notification-content {
+    padding: 12px;
+  }
+
+  .notification-title {
+    font-size: 13px;
+  }
+
+  .notification-message {
+    font-size: 12px;
+  }
+
+  .notification-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .notification-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Modo escuro */
+@media (prefers-color-scheme: dark) {
+  .native-notification {
+    background: #2d2d2d;
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      0 2px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .notification-header {
+    background: #3c3c3c;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .notification-app-name {
+    color: #e8eaed;
+  }
+
+  .notification-time,
+  .notification-close {
+    color: #9aa0a6;
+  }
+
+  .notification-title {
+    color: #e8eaed;
+  }
+
+  .notification-message {
+    color: #9aa0a6;
+  }
+
+  .notification-button.secondary {
+    background: #3c4043;
+    color: #e8eaed;
+  }
+
+  .notification-button.secondary:hover {
+    background: #5f6368;
+  }
+
+  .notification-progress {
+    background: #3c4043;
+  }
+} 

@@ -1,0 +1,59 @@
+project_id = "werfsbezbsprestfpsxd"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["https://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[functions.analytics]
+verify_jwt = false
+
+[functions.send-whatsapp-pix]
+verify_jwt = false
+
+[functions.check-all-pending-payments]
+verify_jwt = false
+
+[functions.verify-payment-status]
+verify_jwt = false
+
+[functions.manage-push-leads]
+verify_jwt = false
+
+[functions.send-agendamento-email]
+verify_jwt = false
+
+[functions.get-cashtime-config]
+verify_jwt = false
+
+[functions.send-real-push]
+verify_jwt = false
+
+[functions.syncpay-payment]
+verify_jwt = false
+
+[functions.syncpay-payment-v2]
+verify_jwt = false
