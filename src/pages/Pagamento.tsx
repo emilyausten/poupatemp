@@ -515,26 +515,7 @@ const Pagamento = () => {
                         </div>
                       </div>
 
-                      {/* Customer Info */}
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h3 className="font-medium text-gray-800 mb-2">Dados do Cliente</h3>
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <p><span className="font-medium">Nome:</span> {userData.nomeCompleto}</p>
-                          <p><span className="font-medium">Email:</span> {userData.email}</p>
-                          <p><span className="font-medium">CPF:</span> {userData.cpf}</p>
-                          <p><span className="font-medium">Telefone:</span> {userData.telefone}</p>
-                        </div>
-                      </div>
 
-                      {/* Address Info */}
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h3 className="font-medium text-gray-800 mb-2">Endereço</h3>
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <p>{addressData.rua}, {addressData.numero}</p>
-                          <p>{addressData.bairro}, {addressData.cidade} - {addressData.estado}</p>
-                          <p>CEP: {addressData.cep}</p>
-                        </div>
-                      </div>
                     </>
                   )}
                 </div>

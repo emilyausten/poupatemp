@@ -184,14 +184,19 @@ export const useSyncPayV2 = () => {
           try {
             console.log(`🔄 Tentativa ${attempt}/${attempts} para gerar PIX...`);
             
+            console.log('🌐 Chamando Edge Function syncpay-payment-v2...');
             const { data, error: supabaseError } = await supabase.functions.invoke('syncpay-payment-v2', {
               body: payload
             });
             
+            console.log('📥 Supabase response:', { data, error: supabaseError });
+            
             if (supabaseError) {
+              console.error('❌ Erro do Supabase:', supabaseError);
               throw supabaseError;
             }
             
+            console.log('✅ Supabase retornou dados:', data);
             return data;
           } catch (error) {
             console.error(`❌ Tentativa ${attempt} falhou:`, error);
@@ -211,6 +216,8 @@ export const useSyncPayV2 = () => {
       const data = await tryWithRetry();
 
       console.log('📥 Resposta da Edge Function:', data);
+      console.log('📥 Tipo da resposta:', typeof data);
+      console.log('📥 Resposta é null/undefined?', data === null || data === undefined);
 
       if (!data) {
         console.error('❌ Resposta vazia da Edge Function');
