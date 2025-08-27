@@ -492,9 +492,6 @@ const Pagamento = () => {
                         <p className="text-sm text-gray-600">
                           Aguarde enquanto processamos seu pagamento
                         </p>
-                        <p className="text-xs text-gray-500">
-                          Tentativa {pollingAttempts + 1} de 24 (máximo 2 minutos)
-                        </p>
                       </div>
                     </div>
                   ) : (
@@ -535,7 +532,7 @@ const Pagamento = () => {
                     <li>• Um aviso breve para lembrete será enviado no WhatsApp</li>
                     <li>• Compareça no local na data agendada</li>
                   </ul>
-                </div>
+                </div>m
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <Button 
