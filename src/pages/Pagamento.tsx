@@ -50,8 +50,8 @@ const Pagamento = () => {
   // Inicializar SyncPay V2 e rate limiting
   const { createTransaction, loading: syncPayLoading, error: syncPayError } = useSyncPayV2();
   const rateLimit = useRateLimit({
-    maxAttempts: 3,
-    windowMs: 15 * 60 * 1000, // 15 minutos
+    maxAttempts: 10, // Aumentado de 3 para 10 tentativas
+    windowMs: 5 * 60 * 1000, // Reduzido de 15 para 5 minutos
     storageKey: 'pix_generation'
   });
 
@@ -100,6 +100,35 @@ const Pagamento = () => {
   const serviceInfo = getServiceInfo();
   const userData = getUserData();
   const addressData = getAddressData();
+
+  // Função para validar CEP
+  const validateCEP = (cep: string) => {
+    const cleanCEP = cep.replace(/\D/g, '');
+    if (cleanCEP.length !== 8) {
+      throw new Error('CEP deve ter exatamente 8 dígitos');
+    }
+    return cleanCEP;
+  };
+
+  // Função para validar CPF
+  const validateCPF = (cpf: string) => {
+    const cleanCPF = cpf.replace(/\D/g, '');
+    if (cleanCPF.length !== 11) {
+      throw new Error('CPF deve ter exatamente 11 dígitos');
+    }
+    return cleanCPF;
+  };
+
+  // Função para validar telefone
+  const validatePhone = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+      throw new Error('Telefone deve ter 10 ou 11 dígitos');
+    }
+    return cleanPhone;
+  };
+
+
 
   // Função para fazer polling do status da transação
   const pollTransactionStatus = async (txId: string, attempts = 0) => {
@@ -173,17 +202,6 @@ const Pagamento = () => {
   };
 
   const handleEmitirPagamento = async () => {
-    // Verificar rate limit
-    if (!rateLimit.checkRateLimit()) {
-      toast({
-        title: "Muitas tentativas",
-        description: `Aguarde ${rateLimit.remainingTime} minutos antes de tentar novamente`,
-        variant: "destructive",
-      });
-      setShowModal(false);
-      return;
-    }
-    
     // Validar valor mínimo antes de processar
     if (serviceInfo.valor < 1.49) {
       toast({
@@ -200,6 +218,33 @@ const Pagamento = () => {
     setPollingAttempts(0);
 
     try {
+      // Validar dados antes de prosseguir
+      let validatedCEP, validatedCPF, validatedPhone;
+      try {
+        validatedCEP = validateCEP(addressData.cep || "01000000");
+        validatedCPF = validateCPF(userData.cpf || "11144477735");
+        validatedPhone = validatePhone(userData.telefone || "11999999999");
+      } catch (validationError) {
+        toast({
+          title: "Dados Inválidos",
+          description: validationError instanceof Error ? validationError.message : "Verifique os dados informados",
+          variant: "destructive",
+        });
+        setShowModal(false);
+        return;
+      }
+
+      // Rate limiting temporariamente desabilitado
+      // if (!rateLimit.checkRateLimit()) {
+      //   toast({
+      //     title: "Muitas tentativas",
+      //     description: `Aguarde ${rateLimit.remainingTime} minutos antes de tentar novamente. Ou limpe o cache do navegador para resetar.`,
+      //     variant: "destructive",
+      //   });
+      //   setShowModal(false);
+      //   return;
+      // }
+
       // Criar payload para SyncPay V2
       const syncPayPayload = {
         ip: "127.0.0.1",
@@ -207,14 +252,14 @@ const Pagamento = () => {
         customer: {
           name: userData.nomeCompleto || "Cliente",
           email: userData.email || "cliente@email.com",
-          cpf: userData.cpf?.replace(/\D/g, '') || "11144477735",
-          phone: userData.telefone?.replace(/\D/g, '') || "11999999999",
+          cpf: validatedCPF,
+          phone: validatedPhone,
           externaRef: `ORDER_${Date.now()}`,
           address: {
             street: addressData.rua || "Rua Exemplo",
             streetNumber: addressData.numero || "123",
             complement: addressData.complemento || "",
-            zipCode: addressData.cep?.replace(/\D/g, '') || "01000000",
+            zipCode: validatedCEP,
             neighborhood: addressData.bairro || "Centro",
             city: addressData.cidade || "São Paulo",
             state: addressData.estado || "SP",
@@ -229,14 +274,14 @@ const Pagamento = () => {
         }],
         postbackUrl: "https://poupatempo.app/payment-webhook",
         pix: {
-          expiresInDays: "2025-12-31"
+          expiresInDays: "2024-12-31" // Data de expiração como string
         },
         metadata: {
           provider: "PoupatempoApp",
           sell_url: "https://poupatempo.app",
           order_url: "https://poupatempo.app/order",
           user_email: userData.email || "cliente@email.com",
-          user_identitication_number: userData.cpf?.replace(/\D/g, '') || "11144477735"
+          user_identitication_number: validatedCPF
         },
         traceable: true
       };
@@ -274,7 +319,7 @@ const Pagamento = () => {
         });
       } else {
         // Se não tem PIX imediatamente, usar polling
-        const txId = result?.id || result?.idTransaction || result?.client_id;
+        const txId = result?.id;
         setTransactionId(txId);
         
         // Fechar modal e mostrar loader

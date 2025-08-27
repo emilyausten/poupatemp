@@ -114,25 +114,47 @@ function ensure(value: any, name: string) {
 }
 
 function validatePayload(payload: any) {
+  console.log('🔍 Iniciando validação do payload...');
+  
   // checagens essenciais
   ensure(payload.ip, 'ip');
-  ensure(payload.pix && payload.pix.expiresInDays, 'pix.expiresInDays');
+  console.log('✅ ip validado:', payload.ip);
+  
+  ensure(payload.pix && typeof payload.pix.expiresInDays === 'string', 'pix.expiresInDays (deve ser string)');
+  console.log('✅ pix.expiresInDays validado:', payload.pix.expiresInDays);
+  
   ensure(Array.isArray(payload.items) && payload.items.length > 0, 'items');
+  console.log('✅ items validado:', payload.items.length, 'itens');
+  
   payload.items.forEach((it: any, idx: number) => {
     ensure(it.title, `items[${idx}].title`);
     ensure(typeof it.quantity === 'number', `items[${idx}].quantity`);
     ensure(typeof it.tangible === 'boolean', `items[${idx}].tangible`);
     ensure(typeof it.unitPrice === 'number', `items[${idx}].unitPrice`);
   });
+  
   ensure(typeof payload.amount === 'number', 'amount');
+  console.log('✅ amount validado:', payload.amount);
+  
   ensure(payload.customer, 'customer');
+  console.log('✅ customer validado');
+  
   // campos do customer
-  ['cpf','name','email','phone','externaRef','address'].forEach(key => ensure(payload.customer[key], `customer.${key}`));
+  ['cpf','name','email','phone','externaRef','address'].forEach(key => {
+    ensure(payload.customer[key], `customer.${key}`);
+    console.log(`✅ customer.${key} validado:`, payload.customer[key]);
+  });
+  
   // address fields
-  ['city','state','street','country','zipCode','neighborhood','streetNumber'].forEach(key =>
-    ensure(payload.customer.address[key], `customer.address.${key}`)
-  );
+  ['city','state','street','country','zipCode','neighborhood','streetNumber'].forEach(key => {
+    ensure(payload.customer.address[key], `customer.address.${key}`);
+    console.log(`✅ customer.address.${key} validado:`, payload.customer.address[key]);
+  });
+  
   ensure(payload.postbackUrl && payload.postbackUrl.startsWith('http'), 'postbackUrl (deve ser URL pública)');
+  console.log('✅ postbackUrl validado:', payload.postbackUrl);
+  
+  console.log('🎉 Validação do payload concluída com sucesso!');
 }
 
 export const useSyncPayV2 = () => {
@@ -146,19 +168,49 @@ export const useSyncPayV2 = () => {
     try {
       console.log('🚀 useSyncPayV2 - Iniciando criação de transação...');
       console.log('📦 Payload enviado:', JSON.stringify(payload, null, 2));
+      
+      // Validar payload antes de enviar
+      try {
+        validatePayload(payload);
+        console.log('✅ Payload validado com sucesso');
+      } catch (validationError) {
+        console.error('❌ Erro na validação do payload:', validationError);
+        throw validationError;
+      }
 
-      // Chamar a Edge Function syncpay-payment-v2
-      const { data, error: supabaseError } = await supabase.functions.invoke('syncpay-payment-v2', {
-        body: payload
-      });
+      // Função para tentar com retry
+      const tryWithRetry = async (attempts = 3) => {
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+          try {
+            console.log(`🔄 Tentativa ${attempt}/${attempts} para gerar PIX...`);
+            
+            const { data, error: supabaseError } = await supabase.functions.invoke('syncpay-payment-v2', {
+              body: payload
+            });
+            
+            if (supabaseError) {
+              throw supabaseError;
+            }
+            
+            return data;
+          } catch (error) {
+            console.error(`❌ Tentativa ${attempt} falhou:`, error);
+            
+            if (attempt === attempts) {
+              throw error;
+            }
+            
+            // Aguardar antes da próxima tentativa
+            const delay = Math.pow(2, attempt) * 1000;
+            console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      };
+      
+      const data = await tryWithRetry();
 
       console.log('📥 Resposta da Edge Function:', data);
-      console.log('❌ Erro da Edge Function:', supabaseError);
-
-      if (supabaseError) {
-        console.error('❌ Erro na Edge Function:', supabaseError);
-        throw new Error(`Erro na Edge Function: ${supabaseError.message}`);
-      }
 
       if (!data) {
         console.error('❌ Resposta vazia da Edge Function');

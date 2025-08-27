@@ -6,8 +6,8 @@ const corsHeaders = {
 };
 
 // Credenciais da SyncPay V2
-const CLIENT_ID = "ade6e47f-ba98-4cef-a56a-4c6ea93b8673";
-const CLIENT_SECRET = "f43f219b-3de1-4e10-8b5b-411cd1092e5c";
+const CLIENT_ID = "7a7ef813-bf52-4b40-b452-b57a2f89e766";
+const CLIENT_SECRET = "406397e0-07e3-46dc-b0ce-2cb658fb6dac";
 const ADDITIONAL_KEY = "01K1259MAXE0TNRXV2C2WQN2MV"; // Valor adicional obrigatório
 const AUTH_URL = "https://api.syncpayments.com.br/api/partner/v1/auth-token";
 const GATEWAY_URL = "https://api.syncpayments.com.br/v1/gateway/api";
@@ -22,23 +22,126 @@ serve(async (req) => {
     console.log('🔔 SyncPay V2 - Iniciando processamento...');
     console.log('🔍 Método da requisição:', req.method);
     console.log('🔍 URL da requisição:', req.url);
+    
+    // Health check da API SyncPay
+    try {
+      const healthResponse = await fetch('https://api.syncpayments.com.br/health', {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000) // 5 segundos timeout
+      });
+      console.log('🏥 Health check SyncPay:', healthResponse.status);
+    } catch (healthError) {
+      console.warn('⚠️ Health check falhou, mas continuando:', healthError);
+    }
 
     // Recebe o payload do frontend
     const payload = await req.json();
     console.log('📦 Payload recebido:', JSON.stringify(payload, null, 2));
+    console.log('🔍 expiresInDays recebido:', payload.pix?.expiresInDays, 'tipo:', typeof payload.pix?.expiresInDays);
+    
+    // Validação básica do payload
+    if (!payload.customer?.cpf || payload.customer.cpf.length !== 11) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'CPF inválido - deve ter 11 dígitos'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    if (!payload.customer?.address?.zipCode || payload.customer.address.zipCode.length < 8) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'CEP inválido - deve ter pelo menos 8 dígitos'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    if (!payload.amount || payload.amount < 1.49) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Valor mínimo para PIX é R$ 1,49'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    // Validação específica do expiresInDays
+    if (!payload.pix?.expiresInDays || typeof payload.pix.expiresInDays !== 'string') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'expiresInDays deve ser uma string com data (ex: "2024-12-31")'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     // 1. Autenticar com Client ID, Secret e chave adicional para obter token
     console.log('🔑 Autenticando com SyncPay V2...');
-    const authResponse = await fetch(AUTH_URL, {
+    console.log('🔑 CLIENT_ID:', CLIENT_ID);
+    console.log('🔑 CLIENT_SECRET:', CLIENT_SECRET.substring(0, 10) + '...');
+    console.log('🔑 ADDITIONAL_KEY:', ADDITIONAL_KEY);
+    console.log('🔑 AUTH_URL:', AUTH_URL);
+    
+    // Função para fazer requisição com retry
+    const makeRequestWithRetry = async (url: string, options: any, maxRetries = 3) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔄 Tentativa ${attempt}/${maxRetries} para ${url}`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+          
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          return response;
+        } catch (error) {
+          console.error(`❌ Tentativa ${attempt} falhou:`, error);
+          if (attempt === maxRetries) throw error;
+          
+          // Aguardar antes da próxima tentativa (backoff exponencial)
+          const delay = Math.pow(2, attempt) * 1000;
+          console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    };
+    
+    const authPayload = {
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      [ADDITIONAL_KEY]: "01K1259MAXE0TNRXV2C2WQN2MV" // Valor adicional obrigatório
+    };
+    
+    console.log('🔑 Payload de autenticação:', JSON.stringify(authPayload, null, 2));
+    
+    const authResponse = await makeRequestWithRetry(AUTH_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        [ADDITIONAL_KEY]: "valor fornecido pela SyncPay" // Valor adicional obrigatório
-      })
+      body: JSON.stringify(authPayload)
     });
 
     if (!authResponse.ok) {
@@ -76,7 +179,7 @@ serve(async (req) => {
 
     // 2. Enviar payload para gerar transação PIX
     console.log('🌐 Enviando payload para gerar transação PIX...');
-    const gatewayResponse = await fetch(GATEWAY_URL, {
+    const gatewayResponse = await makeRequestWithRetry(GATEWAY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -142,7 +245,55 @@ serve(async (req) => {
     }
 
     if (!gatewayResponse.ok) {
-      console.error('❌ Erro na API Gateway:', gatewayResponse.status, gatewayData);
+      console.error('❌ Erro na API Gateway V2:', gatewayResponse.status, gatewayData);
+      
+      // Tentar fallback para API V1
+      console.log('🔄 Tentando fallback para API V1...');
+      try {
+        const v1Response = await makeRequestWithRetry('https://api.syncpayments.com.br/api/v1/pix', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${btoa(CLIENT_ID + ':' + CLIENT_SECRET)}`
+          },
+          body: JSON.stringify({
+            ...payload,
+            amount: payload.amount,
+            customer: {
+              ...payload.customer,
+              document: {
+                number: payload.customer.cpf,
+                type: 'cpf'
+              }
+            }
+          })
+        });
+        
+        if (v1Response.ok) {
+          const v1Data = await v1Response.json();
+          console.log('✅ Fallback V1 bem-sucedido:', v1Data);
+          
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                idTransaction: v1Data.idTransaction || v1Data.id,
+                paymentCode: v1Data.paymentCode,
+                paymentCodeBase64: v1Data.paymentCodeBase64,
+                status_transaction: v1Data.status_transaction || 'pending',
+                message: 'PIX gerado via fallback V1'
+              }
+            }),
+            { 
+              status: 200, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback V1 também falhou:', fallbackError);
+      }
+      
       return new Response(
         JSON.stringify({
           success: false,
